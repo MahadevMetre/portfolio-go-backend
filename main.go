@@ -76,29 +76,37 @@ func main() {
 }
 
 func handleSubmit(c *gin.Context) {
-	var input portfolioData
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
+    // <-- ADD THIS LOGGING FIRST
+    log.Println("Received request from:", c.Request.RemoteAddr)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+    var input portfolioData
+    if err := c.ShouldBindJSON(&input); err != nil {
+        log.Println("BindJSON error:", err)  // optional extra logging
+        c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+        return
+    }
 
-	doc := bson.M{
-		"name":      input.Name,
-		"email":     input.Email,
-		"message":   input.Message,
-		"createdAt": time.Now(),
-	}
+    log.Printf("Parsed input: %+v\n", input)  // logs what the backend actually received
 
-	_, err := collection.InsertOne(ctx, doc)
-	if err != nil {
-		log.Printf("Mongo insert error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save message"})
-		return
-	}
+    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+    defer cancel()
 
-	c.JSON(http.StatusOK, gin.H{"status": "Message saved successfully"})
+    doc := bson.M{
+        "name":      input.Name,
+        "email":     input.Email,
+        "message":   input.Message,
+        "createdAt": time.Now(),
+    }
+
+    _, err := collection.InsertOne(ctx, doc)
+    if err != nil {
+        log.Printf("Mongo insert error: %v", err)
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save message"})
+        return
+    }
+
+    c.JSON(http.StatusOK, gin.H{"status": "Message saved successfully"})
 }
+
+
 
