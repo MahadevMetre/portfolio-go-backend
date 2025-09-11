@@ -4,14 +4,14 @@ import (
 	"context"
 	"log"
 	"net/http"
-	"os"  
+	"os"
 	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"go.mongodb.org/mongo-driver/bson"
 )
 
 type portfolioData struct {
@@ -25,13 +25,13 @@ var collection *mongo.Collection
 func main() {
 
 	// mongoURI := "mongodb+srv://juicekuditiya4_db_user:t6eK8HLqoqwo6oER@cluster0.ucu1skg.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
-
+	
 	// Read Mongo URI from environment variable
 	mongoURI := os.Getenv("MONGO_URI")
 	if mongoURI == "" {
 		log.Fatal("MONGO_URI environment variable not set")
 	}
-	
+
 	// Create a context with a timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -39,8 +39,14 @@ func main() {
 	// Connect to MongoDB
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(mongoURI))
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("MongoDB connection failed:", err)
 	}
+
+	// Ping MongoDB to ensure connection works
+	if err := client.Ping(ctx, nil); err != nil {
+		log.Fatal("MongoDB ping failed:", err)
+	}
+	log.Println("✅ MongoDB connected successfully")
 
 	collection = client.Database("portfolio").Collection("messages")
 
@@ -60,7 +66,11 @@ func main() {
 	// Routes
 	router.POST("/submit", handleSubmit)
 
-	port := "4100"
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "4100" // default fallback
+	}
+	log.Println("🚀 Server running on port:", port)
 	router.Run(":" + port)
 }
 
@@ -74,24 +84,19 @@ func handleSubmit(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	doc := bson.M{
+		"name":      input.Name,
+		"email":     input.Email,
+		"message":   input.Message,
+		"createdAt": time.Now(),
+	}
 
-	// added by me
-doc := bson.M{
-    "name":      input.Name,
-    "email":     input.Email,
-    "message":   input.Message,
-    "createdAt": time.Now(),
-}
-
-_, err := collection.InsertOne(ctx, doc)
-// == == == == == == == == == == 
+	_, err := collection.InsertOne(ctx, doc)
 	if err != nil {
-		log.Printf("Mongo insert error: %v", err)  // <-- add logging to see reason in Railway logs
+		log.Printf("Mongo insert error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save message"})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"status": "Message saved successfully"})
 }
-
-
