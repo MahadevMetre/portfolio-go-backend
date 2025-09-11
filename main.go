@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"os"  
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -23,8 +24,14 @@ var collection *mongo.Collection
 
 func main() {
 
-	mongoURI := "mongodb+srv://juicekuditiya4_db_user:t6eK8HLqoqwo6oER@cluster0.ucu1skg.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+	// mongoURI := "mongodb+srv://juicekuditiya4_db_user:t6eK8HLqoqwo6oER@cluster0.ucu1skg.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
 
+	// Read Mongo URI from environment variable
+	mongoURI := os.Getenv("MONGO_URI")
+	if mongoURI == "" {
+		log.Fatal("MONGO_URI environment variable not set")
+	}
+	
 	// Create a context with a timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -79,10 +86,12 @@ doc := bson.M{
 _, err := collection.InsertOne(ctx, doc)
 // == == == == == == == == == == 
 	if err != nil {
+		log.Printf("Mongo insert error: %v", err)  // <-- add logging to see reason in Railway logs
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save message"})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"status": "Message saved successfully"})
 }
+
 
