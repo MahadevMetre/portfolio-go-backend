@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 type portfolioData struct {
@@ -34,7 +35,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	collection = client.Database("portfolioDB").Collection("inquiries")
+	collection = client.Database("portfolio").Collection("messages")
 
 	// Setup Gin router
 	router := gin.Default()
@@ -66,7 +67,17 @@ func handleSubmit(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	_, err := collection.InsertOne(ctx, input)
+
+	// added by me
+doc := bson.M{
+    "name":      input.Name,
+    "email":     input.Email,
+    "message":   input.Message,
+    "createdAt": time.Now(),
+}
+
+_, err := collection.InsertOne(ctx, doc)
+// == == == == == == == == == == 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save message"})
 		return
@@ -74,3 +85,4 @@ func handleSubmit(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"status": "Message saved successfully"})
 }
+
