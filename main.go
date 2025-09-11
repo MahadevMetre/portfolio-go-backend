@@ -54,7 +54,8 @@ func main() {
 	router := gin.Default()
 
 	config := cors.Config{
-		AllowOrigins:     []string{"https://portfolio.mahadev.gt.tc"},
+		AllowOrigins:     []string{"*"},
+		// AllowOrigins:     []string{"https://portfolio.mahadev.gt.tc"},
 		AllowMethods:     []string{"POST", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type"},
 		ExposeHeaders:    []string{"Content-Length"},
@@ -100,3 +101,4 @@ func handleSubmit(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"status": "Message saved successfully"})
 }
+
