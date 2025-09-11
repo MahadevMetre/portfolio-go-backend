@@ -52,9 +52,10 @@ func main() {
 
 	// Setup Gin router
 	router := gin.Default()
-
+    router.SetTrustedProxies(nil) // trust proxy on Railway - mahadev
+	
 	config := cors.Config{
-		AllowOrigins:     []string{"*"},
+		AllowOrigins:     []string{"*", "https://*.github.io"},
 		// AllowOrigins:     []string{"https://portfolio.mahadev.gt.tc"},
 		AllowMethods:     []string{"POST", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type"},
@@ -64,6 +65,13 @@ func main() {
 	}
 	router.Use(cors.New(config))
 
+// mahadev 
+	// Optional: handle preflight OPTIONS requests
+	router.OPTIONS("/submit", func(c *gin.Context) {
+		c.Status(http.StatusOK)
+	})
+
+	
 	// Routes
 	router.POST("/submit", handleSubmit)
 
@@ -71,7 +79,7 @@ func main() {
 	if port == "" {
 		port = "4100" // default fallback
 	}
-	log.Println("🚀 Server running on port:", port)
+	log.Printf("🚀 Server running on port:%s", port)
 	router.Run(":" + port)
 }
 
@@ -107,6 +115,7 @@ func handleSubmit(c *gin.Context) {
 
     c.JSON(http.StatusOK, gin.H{"status": "Message saved successfully"})
 }
+
 
 
 
