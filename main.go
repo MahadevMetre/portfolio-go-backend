@@ -113,9 +113,66 @@ func handleSubmit(c *gin.Context) {
         return
     }
 
+	go sendEmailNotification(input)
+
     c.JSON(http.StatusOK, gin.H{"status": "Message saved successfully"})
 }
 
 
+// new implementation on sep 26
+
+const emailHTML = `
+<html>
+  <body style="font-family: Arial, sans-serif; background:#fafbfc; margin:0; padding:30px;">
+    <div style="max-width:480px; margin:auto; background:#fff; border-radius:8px; box-shadow:0 3px 12px #eee; padding:32px 24px;">
+      <h2 style="color:#2552d0; margin-top:0;">New Contact Form Submission</h2>
+      <table style="width:100%%; margin:16px 0 24px 0; border-collapse:collapse;">
+        <tr>
+          <td style="font-weight:600; padding:8px 0; width:100px;">Name:</td>
+          <td style="padding:8px 0;">%s</td>
+        </tr>
+        <tr>
+          <td style="font-weight:600; padding:8px 0;">Email:</td>
+          <td style="padding:8px 0;">%s</td>
+        </tr>
+        <tr>
+          <td style="font-weight:600; padding:8px 0; vertical-align:top;">Message:</td>
+          <td style="padding:8px 0; white-space:pre-wrap;">%s</td>
+        </tr>
+      </table>
+      <div style="color:#9da3ae; font-size:13px; border-top:1px solid #ededed; padding-top:24px; margin-top:24px;">
+        <em>This message was sent from your website contact form.</em>
+      </div>
+    </div>
+  </body>
+</html>
+`
+
+func sendEmailNotification(inq portfolioData) {
+
+	host := os.Getenv("SMTP_HOST")
+	port, _ := strconv.Atoi(os.Getenv("SMTP_PORT"))
+	user := os.Getenv("SMTP_USER")
+	pass := os.Getenv("SMTP_PASS")
+
+	m := gomail.NewMessage()
+	m.SetHeader("From", user)
+	m.SetHeader("To", user)
+	m.SetHeader("Subject", "New Contact Form Submission")
+
+	// HTML escape the message content to prevent formatting issues
+	escapedMessage := html.EscapeString(inq.Message)
+	fmt.Println(escapedMessage)
+
+	// In your function, change the % to %% in the CSS properties
+	body := fmt.Sprintf(emailHTML, inq.Name, inq.Email, html.EscapeString(inq.Message))
+	m.SetBody("text/html", body)
+
+	d := gomail.NewDialer(host, port, user, pass)
+
+	if err := d.DialAndSend(m); err != nil {
+		fmt.Println("Failed to send email:", err)
+	}
+}
 
 
