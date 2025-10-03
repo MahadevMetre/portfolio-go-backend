@@ -7,15 +7,15 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/sendgrid/sendgrid-go"
+	"github.com/sendgrid/sendgrid-go/helpers/mail"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"gopkg.in/gomail.v2"
 )
 
 type portfolioData struct {
@@ -28,10 +28,10 @@ var collection *mongo.Collection
 
 func main() {
 
-	// mongoURI := "mongodb+srv://juicekuditiya4_db_user:t6eK8HLqoqwo6oER@cluster0.ucu1skg.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+	mongoURI := "mongodb+srv://juicekuditiya4_db_user:naS6pVsdM6h3gQwD@cluster0.ucu1skg.mongodb.net/portfolio?retryWrites=true&w=majority"
 
 	// Read Mongo URI from environment variable
-	mongoURI := os.Getenv("MONGO_URI")
+	//mongoURI := os.Getenv("MONGO_URI")
 	if mongoURI == "" {
 		log.Fatal("MONGO_URI environment variable not set")
 	}
@@ -80,7 +80,7 @@ func main() {
 
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "4100" // default fallback
+		port = "4200" // default fallback
 	}
 	log.Printf("🚀 Server running on port:%s", port)
 	router.Run(":" + port)
@@ -152,27 +152,31 @@ const emailHTML = `
 
 func sendEmailNotification(inq portfolioData) {
 
-	host := os.Getenv("SMTP_HOST")
-	port, _ := strconv.Atoi(os.Getenv("SMTP_PORT"))
-	user := os.Getenv("SMTP_USER")
-	pass := os.Getenv("SMTP_PASS")
 
-	m := gomail.NewMessage()
-	m.SetHeader("From", user)
-	m.SetHeader("To", user)
-	m.SetHeader("Subject", "New Contact Form Submission")
+	apiKey := os.Getenv("SENDGRID_API_KEY")
+	fromEmail := os.Getenv("SENDGRID_FROM_EMAIL")
+	toEmail := os.Getenv("SENDGRID_TO_EMAIL")
 
-	// HTML escape the message content to prevent formatting issues
+	if fromEmail == "" || toEmail == "" || apiKey == "" {
+		log.Println("SendGrid environment variables not set")
+		return
+	}
+
+	from := mail.NewEmail("Portfolio Website", fromEmail)
+	to := mail.NewEmail("Portfolio Owner", toEmail)
+	subject := "New Contact Form Submission Via Portfolio Website"
+
 	escapedMessage := html.EscapeString(inq.Message)
-	fmt.Println(escapedMessage)
+	body := fmt.Sprintf(emailHTML, inq.Name, inq.Email, escapedMessage)
+	plainText := fmt.Sprintf("Name: %s\nEmail: %s\nMessage: %s", inq.Name, inq.Email, inq.Message)
 
-	// In your function, change the % to %% in the CSS properties
-	body := fmt.Sprintf(emailHTML, inq.Name, inq.Email, html.EscapeString(inq.Message))
-	m.SetBody("text/html", body)
+	message := mail.NewSingleEmail(from, subject, to, plainText, body)
+	client := sendgrid.NewSendClient(apiKey)
 
-	d := gomail.NewDialer(host, port, user, pass)
-
-	if err := d.DialAndSend(m); err != nil {
-		fmt.Println("Failed to send email:", err)
+	response, err := client.Send(message)
+	if err != nil {
+		log.Println("SendGrid error:", err)
+	} else {
+		log.Println("SendGrid response code:", response.StatusCode)
 	}
 }
